@@ -204,59 +204,91 @@ typedef struct {
 	bool mRunning;
 	SDL_Renderer* mRenderer;
 	int wM, hM;
-	TTF_Font* mfont;
-	SDL_FRect mDst;
 
 }SDLApplication;
 
 
-void loadFont(SDLApplication* sdlP)
-{
-	sdlP->mfont = TTF_OpenFont("font/Rockwell.otf", 20);
-}
+typedef struct {
+	TTF_Font* mFont;
+	SDL_Color mColor;
+	SDL_Surface* mSurface;
+	char* text;
+	SDL_Texture* mTexture;
+	float mWidth, mHeight;
+	SDL_FRect mDst;
+} Drawable;
 
-SDL_Texture* renderText(SDLApplication* sdlP,char* string)
+//initialize every drawable to white rockwell for now
+void initializeDrawable(Drawable* dwblP)
 {
-
 	SDL_Color white = { 255, 255, 255, 255 };
+	dwblP->mColor = white;
 
-	SDL_Surface* surface =
-		TTF_RenderText_Blended(sdlP->mfont, string, 0, white);
-
-	if (!surface)
+	dwblP->mFont = TTF_OpenFont("font/Rockwell.otf", 20);
+	if (!dwblP->mFont)
+	{
+		printf("Font loading failed: %s\n", SDL_GetError());
+		return;
+	}
+	dwblP->text = "Initialization text";
+	dwblP->mSurface = TTF_RenderText_Blended(dwblP->mFont, dwblP->text, 0, white);
+	if (!dwblP->mSurface)
 	{
 		printf("%s\n", SDL_GetError());
 		return 1;
 	}
+	dwblP->mWidth = (float)(dwblP->mSurface)->w;
+	dwblP->mHeight = (float)(dwblP->mSurface)->h;
 
-	float width = (float)surface->w;
-	float height = (float)surface->h;
-	SDL_Texture* texture =
-		SDL_CreateTextureFromSurface(sdlP->mRenderer, surface);
 
-	SDL_DestroySurface(surface);
-
-	SDL_FRect dst = {
-		50.0f,
-		50.0f,
-		width,
-		height
-	};
-
-	sdlP->mDst = dst;
-
-	SDL_SetRenderDrawColor(sdlP->mRenderer, 30, 30, 30, 255);
-	return texture;
 }
-void render(SDLApplication* sdlP)
+void destroyDrawable(Drawable* dwblP)
 {
-	SDL_RenderClear(sdlP->mRenderer);
-	SDL_RenderTexture(sdlP->mRenderer, renderText, NULL, &(sdlP->mDst));
-	SDL_DestroyTexture(renderText);
-	TTF_CloseFont(sdlP->mfont);
+	SDL_DestroyTexture(dwblP->mTexture);
+	TTF_CloseFont(dwblP->mFont);
+
+	dwblP->mTexture = NULL;
+	dwblP->mFont = NULL;
+}
+void setupDrawable(SDLApplication* sdlP, Drawable* dwblP)
+{
+
+	dwblP->mTexture =
+		SDL_CreateTextureFromSurface(sdlP->mRenderer, dwblP->mSurface);
+
+	if (!dwblP->mTexture)
+	{
+		printf("Texture creation failed: %s\n", SDL_GetError());
+		return;
+	}
+	SDL_FRect dst ={
+		50.0f,
+		50.0f,
+		dwblP->mWidth,
+		dwblP->mHeight
+	};
+	dwblP->mDst = dst;
+
+	SDL_DestroySurface(dwblP->mSurface);
+	dwblP->mSurface = NULL;
+	//take this texture and place it at the designated location
+	
 }
 
+void updateFrame(SDLApplication* sdlP)
+{
 
+	SDL_RenderPresent(sdlP->mRenderer);
+}
+void renderDrawable(SDLApplication* sdlP, Drawable* dwblP)
+{
+	SDL_RenderTexture(sdlP->mRenderer, dwblP->mTexture, NULL, &(dwblP->mDst));
+}
+void renderScreen(SDLApplication* sdlP)
+{
+	SDL_SetRenderDrawColor(sdlP->mRenderer, 30, 30, 30, 255);
+	SDL_RenderClear(sdlP->mRenderer);
+}
 
 void initializeSDL3(SDLApplication* sdlP)
 {
@@ -278,11 +310,13 @@ void initializeSDL3(SDLApplication* sdlP)
 		return 1;
 	}
 
+
 }
 
 
 void sdlRunning(SDLApplication* sdlP)
 {
+
 	SDL_Renderer* renderer = SDL_CreateRenderer(sdlP->mWindow, NULL);
 	if (!renderer)
 	{
@@ -290,11 +324,14 @@ void sdlRunning(SDLApplication* sdlP)
 		return 1;
 	}
 
+	Drawable d1;
+	Drawable* d1P = &d1;
 
 	sdlP->mRenderer = renderer;
-
+	initializeDrawable(d1P);
+	setupDrawable(sdlP,d1P);
 	Uint64 lastTime = SDL_GetTicks();
-	renderText(sdlP, '|');
+
 	while (!sdlP->mRunning)
 	{
 		SDL_Event event;
@@ -310,13 +347,14 @@ void sdlRunning(SDLApplication* sdlP)
 		lastTime = currentTime;
 		//every second you want the cursor the "blink", this should be done by defining the delay to be one second, 
 		//then on the draw cursor function, calculate the time, if the time is greater than or equal to delay, perform action, then reset the delta time to repeat.
-
-		SDL_RenderPresent(sdlP->mRenderer);
-		render(sdlP);
+		
+		renderScreen(sdlP);
+		renderDrawable(sdlP, d1P);
+		updateFrame(sdlP);
 		//writeText(sdlP);
 	}
 
-
+	destroyDrawable(d1P);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(sdlP->mWindow);
 	TTF_Quit();
@@ -328,6 +366,7 @@ int main() {
 	stringVect strV;
 	SDLApplication sdlA;
 	SDLApplication* sdlP = &sdlA;
+
 	stringVect* strVp = &strV;
 	initialize(strVp);
 	//while (counter < 4)
@@ -344,5 +383,6 @@ int main() {
 	//printAll(strVp);
 	//printf("\n\n");
 	initializeSDL3(sdlP);
+
 	sdlRunning(sdlP);
 }
