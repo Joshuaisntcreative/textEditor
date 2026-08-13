@@ -212,14 +212,14 @@ typedef struct {
 	TTF_Font* mFont;
 	SDL_Color mColor;
 	SDL_Surface* mSurface;
-	char* text;
+	char* mText;
 	SDL_Texture* mTexture;
 	float mWidth, mHeight;
 	SDL_FRect mDst;
 } Drawable;
 
 //initialize every drawable to white rockwell for now
-void initializeDrawable(Drawable* dwblP)
+void initializeDrawable(Drawable* dwblP, char* string, int x, int y)
 {
 	SDL_Color white = { 255, 255, 255, 255 };
 	dwblP->mColor = white;
@@ -230,8 +230,8 @@ void initializeDrawable(Drawable* dwblP)
 		printf("Font loading failed: %s\n", SDL_GetError());
 		return;
 	}
-	dwblP->text = "Initialization text";
-	dwblP->mSurface = TTF_RenderText_Blended(dwblP->mFont, dwblP->text, 0, white);
+	dwblP->mText = string;
+	dwblP->mSurface = TTF_RenderText_Blended(dwblP->mFont, dwblP->mText, 0, white);
 	if (!dwblP->mSurface)
 	{
 		printf("%s\n", SDL_GetError());
@@ -239,7 +239,13 @@ void initializeDrawable(Drawable* dwblP)
 	}
 	dwblP->mWidth = (float)(dwblP->mSurface)->w;
 	dwblP->mHeight = (float)(dwblP->mSurface)->h;
-
+	SDL_FRect dst = {
+	x,
+	y,
+	dwblP->mWidth,
+	dwblP->mHeight
+	};
+	dwblP->mDst = dst;
 
 }
 void destroyDrawable(Drawable* dwblP)
@@ -250,7 +256,7 @@ void destroyDrawable(Drawable* dwblP)
 	dwblP->mTexture = NULL;
 	dwblP->mFont = NULL;
 }
-void setupDrawable(SDLApplication* sdlP, Drawable* dwblP)
+void linkDrawable(SDLApplication* sdlP, Drawable* dwblP)
 {
 
 	dwblP->mTexture =
@@ -261,17 +267,10 @@ void setupDrawable(SDLApplication* sdlP, Drawable* dwblP)
 		printf("Texture creation failed: %s\n", SDL_GetError());
 		return;
 	}
-	SDL_FRect dst ={
-		50.0f,
-		50.0f,
-		dwblP->mWidth,
-		dwblP->mHeight
-	};
-	dwblP->mDst = dst;
+
 
 	SDL_DestroySurface(dwblP->mSurface);
 	dwblP->mSurface = NULL;
-	//take this texture and place it at the designated location
 	
 }
 
@@ -283,6 +282,36 @@ void updateFrame(SDLApplication* sdlP)
 void renderDrawable(SDLApplication* sdlP, Drawable* dwblP)
 {
 	SDL_RenderTexture(sdlP->mRenderer, dwblP->mTexture, NULL, &(dwblP->mDst));
+}
+
+void updateDrawable(SDLApplication* sdlP,Drawable* dwblP, char* string)
+{
+	dwblP->mText = string;
+
+	SDL_DestroyTexture(dwblP->mTexture);
+
+	dwblP->mSurface =
+		TTF_RenderText_Blended(
+			dwblP->mFont,
+			dwblP->mText,
+			0,
+			dwblP->mColor
+		);
+
+	dwblP->mTexture =
+		SDL_CreateTextureFromSurface(
+			sdlP->mRenderer,
+			dwblP->mSurface
+		);
+
+	dwblP->mWidth = (float)dwblP->mSurface->w;
+	dwblP->mHeight = (float)dwblP->mSurface->h;
+
+
+	dwblP->mDst.w = dwblP->mWidth;
+	dwblP->mDst.h = dwblP->mHeight;
+
+	SDL_DestroySurface(dwblP->mSurface);
 }
 void renderScreen(SDLApplication* sdlP)
 {
@@ -323,37 +352,46 @@ void sdlRunning(SDLApplication* sdlP)
 		printf("Renderer creation failed: %s\n", SDL_GetError());
 		return 1;
 	}
-
+	float currentTime = 0.0f;
+	char currentTimeS[10];
 	Drawable d1;
 	Drawable* d1P = &d1;
 
+
+	Drawable d2;
+	Drawable* d2P = &d2;
+
 	sdlP->mRenderer = renderer;
-	initializeDrawable(d1P);
-	setupDrawable(sdlP,d1P);
-	Uint64 lastTime = SDL_GetTicks();
+	initializeDrawable(d1P, "hello", 150, 100);
+	linkDrawable(sdlP,d1P);
+
+
+	initializeDrawable(d2P, currentTimeS, 250, 150);
+	linkDrawable(sdlP, d2P);
+	Uint64 startTime = SDL_GetTicks();
 
 	while (!sdlP->mRunning)
 	{
 		SDL_Event event;
 
-		Uint64 currentTime = SDL_GetTicks();
+		float currentTime =(float)(SDL_GetTicks() - startTime) / 1000.0f;
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_EVENT_QUIT) {
 				sdlP->mRunning = true;
 			}
 		}
-		float deltaTime = (float)(currentTime - lastTime) / 1000.0f;
-		SDL_Log("%f", currentTime);
-		lastTime = currentTime;
-		//every second you want the cursor the "blink", this should be done by defining the delay to be one second, 
+		snprintf(currentTimeS, sizeof(currentTimeS), "%.2f", currentTime);
+		SDL_Log("%f\n",(float)currentTime)
+;		//every second you want the cursor the "blink", this should be done by defining the delay to be one second, 
 		//then on the draw cursor function, calculate the time, if the time is greater than or equal to delay, perform action, then reset the delta time to repeat.
 		
 		renderScreen(sdlP);
+		renderDrawable(sdlP, d2P);
+		updateDrawable(sdlP,d2P, currentTimeS);
 		renderDrawable(sdlP, d1P);
 		updateFrame(sdlP);
-		//writeText(sdlP);
 	}
-
+	destroyDrawable(d2P);
 	destroyDrawable(d1P);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(sdlP->mWindow);
