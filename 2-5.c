@@ -140,24 +140,24 @@ void customRealloc(stringVect* ptr, char* string, int location)
 void deleteString(stringVect* ptr, int location)
 {
 	int itr = ptr->index - 1;
-	char* temp = malloc( strlen(ptr->items[ptr->index-1]) + 1);
-	strncpy(temp, ptr->items[ptr->index-1], strlen(ptr->items[ptr->index-1]) + 1 );
+	char* temp = malloc(strlen(ptr->items[ptr->index - 1]) + 1);
+	strncpy(temp, ptr->items[ptr->index - 1], strlen(ptr->items[ptr->index - 1]) + 1);
 
 	while (itr != location)
 	{
 		int i = itr - 1;
 		//should overwrite the empty buffer to the iterator I value;
-		customRealloc(ptr, ptr->items[i], ptr->index-1);
+		customRealloc(ptr, ptr->items[i], ptr->index - 1);
 
 		//problematic call of customRealloc
 		customRealloc(ptr, temp, i);
-		
+
 		//uses strncpy because customRealloc only takes in stringVect* as first parameter
-		strncpy(temp, ptr->items[ptr->index-1], strlen(ptr->items[ptr->index-1]) + 1);
+		strncpy(temp, ptr->items[ptr->index - 1], strlen(ptr->items[ptr->index - 1]) + 1);
 		i--;
 		itr--;
 	}
-	ptr->items[ptr->index-1] = NULL;
+	ptr->items[ptr->index - 1] = NULL;
 	free(ptr->items[ptr->index - 1]);
 	ptr->index--;
 }
@@ -271,7 +271,7 @@ void linkDrawable(SDLApplication* sdlP, Drawable* dwblP)
 
 	SDL_DestroySurface(dwblP->mSurface);
 	dwblP->mSurface = NULL;
-	
+
 }
 
 void updateFrame(SDLApplication* sdlP)
@@ -284,7 +284,7 @@ void renderDrawable(SDLApplication* sdlP, Drawable* dwblP)
 	SDL_RenderTexture(sdlP->mRenderer, dwblP->mTexture, NULL, &(dwblP->mDst));
 }
 
-void updateDrawable(SDLApplication* sdlP,Drawable* dwblP, char* string)
+void updateDrawable(SDLApplication* sdlP, Drawable* dwblP, char* string)
 {
 	dwblP->mText = string;
 
@@ -313,6 +313,7 @@ void updateDrawable(SDLApplication* sdlP,Drawable* dwblP, char* string)
 
 	SDL_DestroySurface(dwblP->mSurface);
 }
+
 void renderScreen(SDLApplication* sdlP)
 {
 	SDL_SetRenderDrawColor(sdlP->mRenderer, 30, 30, 30, 255);
@@ -342,7 +343,6 @@ void initializeSDL3(SDLApplication* sdlP)
 
 }
 
-
 void sdlRunning(SDLApplication* sdlP)
 {
 
@@ -353,20 +353,24 @@ void sdlRunning(SDLApplication* sdlP)
 		return 1;
 	}
 	float currentTime = 0.0f;
-	char currentTimeS[10];
+	char totalTimeS[10];
 	Drawable d1;
 	Drawable* d1P = &d1;
 
 
 	Drawable d2;
 	Drawable* d2P = &d2;
+	char* cursor = "|";
+	bool secondStarted = false;
+
+
 
 	sdlP->mRenderer = renderer;
-	initializeDrawable(d1P, "hello", 150, 100);
-	linkDrawable(sdlP,d1P);
+	initializeDrawable(d1P, cursor, 150, 100);
+	linkDrawable(sdlP, d1P);
 
 
-	initializeDrawable(d2P, currentTimeS, 250, 150);
+	initializeDrawable(d2P, totalTimeS, 250, 150);
 	linkDrawable(sdlP, d2P);
 	Uint64 startTime = SDL_GetTicks();
 
@@ -374,20 +378,48 @@ void sdlRunning(SDLApplication* sdlP)
 	{
 		SDL_Event event;
 
-		float currentTime =(float)(SDL_GetTicks() - startTime) / 1000.0f;
+		float totalTime = (float)(SDL_GetTicks() - startTime) / 1000.0f;
+		Uint64 currentTime = SDL_GetTicks();
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_EVENT_QUIT) {
 				sdlP->mRunning = true;
 			}
 		}
-		snprintf(currentTimeS, sizeof(currentTimeS), "%.2f", currentTime);
-		SDL_Log("%f\n",(float)currentTime)
-;		//every second you want the cursor the "blink", this should be done by defining the delay to be one second, 
-		//then on the draw cursor function, calculate the time, if the time is greater than or equal to delay, perform action, then reset the delta time to repeat.
-		
+
+
+		snprintf(totalTimeS, sizeof(totalTimeS), "%.2f", totalTime);
+
+		;		//every second you want the cursor the "blink", this should be done by defining the delay to be one second, 
+				//then on the draw cursor function, calculate the time, if the time is greater than or equal to delay, perform action, then reset the delta time to repeat.
+
+
+
 		renderScreen(sdlP);
+
+		updateDrawable(sdlP, d2P, totalTimeS);
 		renderDrawable(sdlP, d2P);
-		updateDrawable(sdlP,d2P, currentTimeS);
+
+		//second has started
+		if (totalTime < .5f)
+		{
+			updateDrawable(sdlP, d1P, "|");
+		}
+		//must be larger than 1 second 
+		else
+		{
+			if (totalTime >= 1.0)
+			{
+				updateDrawable(sdlP, d1P, "over the count");
+				//reset the counter, aka total time should now be 0
+				startTime += 1000.f;
+			}
+			else
+			{
+				updateDrawable(sdlP, d1P, " ");
+			}
+
+			
+		}
 		renderDrawable(sdlP, d1P);
 		updateFrame(sdlP);
 	}
