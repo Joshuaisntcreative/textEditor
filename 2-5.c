@@ -346,6 +346,7 @@ void initializeSDL3(SDLApplication* sdlP)
 void sdlRunning(SDLApplication* sdlP)
 {
 
+	//creating window
 	SDL_Renderer* renderer = SDL_CreateRenderer(sdlP->mWindow, NULL);
 	if (!renderer)
 	{
@@ -358,22 +359,33 @@ void sdlRunning(SDLApplication* sdlP)
 	Drawable* d1P = &d1;
 
 
+	//setup cursor 
 	Drawable d2;
 	Drawable* d2P = &d2;
 	char* cursor = "|";
 	bool secondStarted = false;
 
 
-
+	//rendering
 	sdlP->mRenderer = renderer;
 	initializeDrawable(d1P, cursor, 150, 100);
 	linkDrawable(sdlP, d1P);
-
-
+	//start loop
 	initializeDrawable(d2P, totalTimeS, 250, 150);
 	linkDrawable(sdlP, d2P);
 	Uint64 startTime = SDL_GetTicks();
+	char buffer[10]="";
+	SDL_StartTextInput(sdlP->mWindow);
+	
 
+
+	//initializing stringVector pointer W buffer = 256
+	char buffer[256];
+	stringVect strV;
+	stringVect* strVp = &strV;
+	initialize(strVp);
+
+	//main window loop
 	while (!sdlP->mRunning)
 	{
 		SDL_Event event;
@@ -383,6 +395,12 @@ void sdlRunning(SDLApplication* sdlP)
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_EVENT_QUIT) {
 				sdlP->mRunning = true;
+				break;
+			}
+
+			if (event.type == SDL_EVENT_TEXT_INPUT)
+			{
+				strcat(buffer, event.text.text);
 			}
 		}
 
@@ -423,6 +441,13 @@ void sdlRunning(SDLApplication* sdlP)
 		renderDrawable(sdlP, d1P);
 		updateFrame(sdlP);
 	}
+	printf("End of program:");
+
+	for (int i = 0; i < 10; i++)
+	{
+		printf("%c\n",buffer[i]);
+	}
+	SDL_StopTextInput(sdlP->mWindow);
 	destroyDrawable(d2P);
 	destroyDrawable(d1P);
 	SDL_DestroyRenderer(renderer);
@@ -432,13 +457,10 @@ void sdlRunning(SDLApplication* sdlP)
 }
 int main() {
 	int counter = 0;
-	char buffer[256];
-	stringVect strV;
+
 	SDLApplication sdlA;
 	SDLApplication* sdlP = &sdlA;
 
-	stringVect* strVp = &strV;
-	initialize(strVp);
 	//while (counter < 4)
 	//{
 	//	printf("Enter a string:\n");
