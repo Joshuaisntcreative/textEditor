@@ -8,14 +8,12 @@
 
 
 
+
 typedef struct
 {
 	char** items;
 	int index;
 } stringVect;
-
-
-
 
 
 
@@ -78,6 +76,19 @@ char* append_char(stringVect* ptr, int i, char c)
 	temp[last++] = c;
 	temp[last] = '\0';
 
+	ptr->items[i] = temp;
+	return ptr->items[i];
+	free(temp);
+}
+
+
+void append_sdl3_char(stringVect* ptr, int i, char* s)
+{
+	int last = strlen(ptr->items[i]);
+
+	char* temp = realloc(ptr->items[i], last);
+	temp[last++] = s;
+	temp[last] = '\0';
 	ptr->items[i] = temp;
 	return ptr->items[i];
 	free(temp);
@@ -196,6 +207,30 @@ char* duplicate_string(const char* src)
 {
 	char* returnedString = src;
 	return returnedString;
+}
+char* append_charptr(stringVect* ptr, int i, char* c)
+{
+	int last = strlen(ptr->items[i]);
+	int countC;
+
+	for (countC = 0; c[countC] != '\0'; countC++)
+	{
+
+	}
+	//+1 for null terminator
+	char* temp = realloc(ptr->items[i], last + countC + 1);
+	int cindex = 0;
+	int j;
+	for (j = last; j < last + countC; j++)
+	{
+		temp[j] = c[cindex++];
+	}
+	//so when the loop ends, j will be at null terminator location
+	temp[j++] = '\0';
+	ptr->items[i] = temp;
+	return ptr->items[i];
+	free(temp);
+
 }
 
 
@@ -343,6 +378,75 @@ void initializeSDL3(SDLApplication* sdlP)
 
 }
 
+
+typedef struct
+{
+	stringVect strv;
+	Drawable d;
+}drawableStringVect;
+
+
+//combined intialization and linking of SDL3 ttf
+void drawStringVect(SDLApplication* sdlP, drawableStringVect stringVectD, int x, int y)
+{
+	Drawable* dP = &(stringVectD.d);
+	//initializes and links aswell
+	SDL_Color white = { 255, 255, 255, 255 };
+	dP->mColor = white;
+
+
+	dP->mFont = TTF_OpenFont("font/Rockwell.otf", 20);
+	if (!dP->mFont)
+	{
+		printf("Font loading failed: %s\n", SDL_GetError());
+		return;
+	}
+
+	dP->mText = stringVectD.strv.items;
+
+	dP->mSurface = TTF_RenderText_Blended(dP->mFont, dP->mText, 0, white);
+	if (!dP->mSurface)
+	{
+		printf("%s\n", SDL_GetError());
+		return 1;
+	}
+
+	dP->mWidth = (float)(dP->mSurface)->w;
+	dP->mHeight = (float)(dP->mSurface)->h;
+	SDL_FRect dst = {
+	x,
+	y,
+	dP->mWidth,
+	dP->mHeight
+	};
+	dP->mDst = dst;
+
+
+	dP->mTexture =
+		SDL_CreateTextureFromSurface(sdlP->mRenderer, dP->mSurface);
+
+	if (!dP->mTexture)
+	{
+		printf("Texture creation failed: %s\n", SDL_GetError());
+		return;
+	}
+
+
+	SDL_DestroySurface(dP->mSurface);
+	dP->mSurface = NULL;
+}
+
+
+void destroyDrawableStringVect(drawableStringVect dSv)
+{
+	Drawable* dP = &(dSv.d);
+	SDL_DestroyTexture(dP->mTexture);
+	TTF_CloseFont(dP->mFont);
+
+	dP->mTexture = NULL;
+	dP->mFont = NULL;
+}
+
 void sdlRunning(SDLApplication* sdlP)
 {
 
@@ -366,6 +470,11 @@ void sdlRunning(SDLApplication* sdlP)
 	bool secondStarted = false;
 
 
+	//buffer drawable
+	Drawable d3;
+	Drawable* d3P = &d3;
+
+
 	//rendering
 	sdlP->mRenderer = renderer;
 	initializeDrawable(d1P, cursor, 150, 100);
@@ -373,17 +482,27 @@ void sdlRunning(SDLApplication* sdlP)
 	//start loop
 	initializeDrawable(d2P, totalTimeS, 250, 150);
 	linkDrawable(sdlP, d2P);
+
+
 	Uint64 startTime = SDL_GetTicks();
-	char buffer[10]="";
 	SDL_StartTextInput(sdlP->mWindow);
-	
+
 
 
 	//initializing stringVector pointer W buffer = 256
-	char buffer[256];
+	char buffer[256] = "";
 	stringVect strV;
 	stringVect* strVp = &strV;
 	initialize(strVp);
+	const bool* keys = SDL_GetKeyboardState(sdlP->mWindow);
+	addString(strVp, buffer);
+	
+	//initialize the drawableStringVect here
+	 
+	drawableStringVect dsV;
+	dsV.d = d3;
+	dsV.strv = strV;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+
 
 	//main window loop
 	while (!sdlP->mRunning)
@@ -392,6 +511,7 @@ void sdlRunning(SDLApplication* sdlP)
 
 		float totalTime = (float)(SDL_GetTicks() - startTime) / 1000.0f;
 		Uint64 currentTime = SDL_GetTicks();
+
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_EVENT_QUIT) {
 				sdlP->mRunning = true;
@@ -401,6 +521,13 @@ void sdlRunning(SDLApplication* sdlP)
 			if (event.type == SDL_EVENT_TEXT_INPUT)
 			{
 				strcat(buffer, event.text.text);
+				append_charptr(strVp, 0, event.text.text);
+				printAll(strVp);
+			}
+
+			if (keys[SDL_SCANCODE_KP_ENTER] == true)
+			{
+				SDL_Log("Enter button was pressed");
 			}
 		}
 
@@ -413,6 +540,9 @@ void sdlRunning(SDLApplication* sdlP)
 
 
 		renderScreen(sdlP);
+
+		//render stringVect here
+//		drawStringVect(sdlP, dsV, 200, 250);
 
 		updateDrawable(sdlP, d2P, totalTimeS);
 		renderDrawable(sdlP, d2P);
@@ -435,18 +565,12 @@ void sdlRunning(SDLApplication* sdlP)
 			{
 				updateDrawable(sdlP, d1P, " ");
 			}
-
-			
 		}
 		renderDrawable(sdlP, d1P);
 		updateFrame(sdlP);
 	}
-	printf("End of program:");
-
-	for (int i = 0; i < 10; i++)
-	{
-		printf("%c\n",buffer[i]);
-	}
+	//addString(strVp, buffer);
+	printAll(strVp);
 	SDL_StopTextInput(sdlP->mWindow);
 	destroyDrawable(d2P);
 	destroyDrawable(d1P);
@@ -454,7 +578,10 @@ void sdlRunning(SDLApplication* sdlP)
 	SDL_DestroyWindow(sdlP->mWindow);
 	TTF_Quit();
 	SDL_Quit();
-}
+}//end of sdlRunning function
+
+
+
 int main() {
 	int counter = 0;
 
