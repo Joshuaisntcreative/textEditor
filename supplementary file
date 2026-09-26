@@ -1,1 +1,364 @@
 
+// Online C compiler to run C program online
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
+typedef struct
+{
+	char** items;
+	int index;
+	int capacity;
+} stringVect;
+
+void initialize(stringVect* ptr)
+{
+	ptr->index = 0;
+	ptr->capacity = 3;
+	ptr->items = malloc(sizeof(char*) * ptr->capacity);
+}
+
+
+void addString(stringVect* ptr, char* buffer)
+{
+	size_t len = strlen(buffer) + 1;
+	ptr->items[ptr->index] = malloc(len);
+	strncpy(ptr->items[ptr->index++], buffer, len);
+}
+
+
+
+char* duplicate_string(const char* src)
+{
+	char* returnedString = src;
+	return returnedString;
+}
+
+
+//should tweak so it deletes like a linked list
+void deleteString(stringVect* ptr, int location)
+{
+	stringVect* dPtr = ptr;
+	int location2 = location + 1;
+	while (location < ptr->index)
+	{
+		//len 1 is the size of the i'th string
+		size_t len1 = strlen(dPtr->items[location]);
+
+		//size of the i++ string
+		size_t len2 = strlen(dPtr->items[location2]);
+
+		strncpy_s(dPtr->items[location++], len1, dPtr->items[location2++], len2);
+	}
+	free(ptr->items[ptr->index--]);
+}
+void printAll(stringVect* strV)
+{
+	for (int i = 0; i < strV->index; i++)
+	{
+		printf("Address at index %d:%p\nValue at index %d: %s\n", i, &(strV->items[i]), i, strV->items[i]);
+		printf("The size of the string at index %d: %d\n\n", i, strlen(strV->items[i]));
+	}
+
+}
+
+char* return_string(stringVect* ptr, int index)
+{
+	return ptr->items[index];
+}
+
+
+
+char* remove_last_char(stringVect* ptr, int i)
+{
+	//perform the reverse of append_char and get the index of the last element of the string, and replace it with '\0'
+	int last = strlen(ptr->items[i]) - 1;
+	char* temp = realloc(ptr->items[i], last);
+	temp[last] = '\0';
+	ptr->items[i] = temp;
+	return ptr->items[i];
+	free(temp);
+}
+
+char* append_char(stringVect* ptr, int i, char c)
+{
+	//create a temporary ptr that reallocates the memory
+	 //add c and '\0' to temporary,
+	 //set ptr to temporary and free temp
+
+	remove_last_char(ptr, i);
+
+	//last is at the index of where the '\0' is
+	int last = strlen(ptr->items[i]);
+	//we do +2 to add c and '\0'
+	char* temp = realloc(ptr->items[i], last + 1);
+	temp[last++] = c;
+	temp[last] = '\0';
+
+	ptr->items[i] = temp;
+	return ptr->items[i];
+	free(temp);
+}
+//we will modify this function so that the append_char function stays working, this relies on the string already being made not making one from scratch
+char* append_charptr(stringVect* ptr, int i, char* c)
+{
+	//remove_last_char(ptr, i);
+	int last = strlen(ptr->items[i]);
+	int countC;
+
+	for (countC = 0; c[countC] != '\0'; countC++)
+	{
+
+	}
+	//+1 for null terminator
+	char* temp = realloc(ptr->items[i], last + countC + 1);
+	int cindex = 0;
+	int j;
+	for (j = last; j < last + countC; j++)
+	{
+		temp[j] = c[cindex++];
+	}
+	//so when the loop ends, j will be at null terminator location
+	temp[j++] = '\0';
+	ptr->items[i] = temp;
+	return ptr->items[i];
+	free(temp);
+
+}
+void swapString(stringVect* ptr, int loc1, int loc2)
+{
+
+	size_t len1 = strlen(ptr->items[loc1]);
+	size_t len2 = strlen(ptr->items[loc2]);
+	//need to store one strings data in a temporary pointer so it doesnt get lost, we'll store string1 in a temp 
+
+	//4 btyes are already in play
+	char* temp = malloc(len1 - 4);
+
+	//temp is now string1 
+	strncpy(temp, ptr->items[loc1], len1);
+	//string 2 has enough space for string1
+	char* temp1 = realloc(ptr->items[loc2], len1);
+
+	//string1 has enough space for string2
+
+	char* temp2 = realloc(ptr->items[loc1], len2);
+
+	ptr->items[loc1] = temp2;
+	ptr->items[loc1] = ptr->items[loc2];
+
+	ptr->items[loc2] = temp1;
+	ptr->items[loc2] = temp;
+
+}
+
+typedef struct {
+	SDL_Window* mWindow;
+	bool mRunning;
+	SDL_Renderer* mRenderer;
+	int wM, hM;
+
+}SDLApplication;
+
+//ill also add the drawable stuff here so its readable
+typedef struct {
+	TTF_Font* mFont;
+	SDL_Color mColor;
+	SDL_Surface* mSurface;
+	char* mText;
+	SDL_Texture* mTexture;
+	float mWidth, mHeight;
+	SDL_FRect mDst;
+} Drawable;
+
+//initialize every drawable to white rockwell for now
+void initializeDrawable(Drawable* dwblP, char* string, int x, int y)
+{
+	SDL_Color white = { 255, 255, 255, 255 };
+	dwblP->mColor = white;
+
+	dwblP->mFont = TTF_OpenFont("font/Rockwell.otf", 20);
+	if (!dwblP->mFont)
+	{
+		printf("Font loading failed: %s\n", SDL_GetError());
+		return;
+	}
+	dwblP->mText = string;
+	dwblP->mSurface = TTF_RenderText_Blended(dwblP->mFont, dwblP->mText, 0, white);
+	if (!dwblP->mSurface)
+	{
+		printf("%s\n", SDL_GetError());
+		return 1;
+	}
+	dwblP->mWidth = (float)(dwblP->mSurface)->w;
+	dwblP->mHeight = (float)(dwblP->mSurface)->h;
+	SDL_FRect dst = {
+	x,
+	y,
+	dwblP->mWidth,
+	dwblP->mHeight
+	};
+	dwblP->mDst = dst;
+
+}
+void destroyDrawable(Drawable* dwblP)
+{
+	SDL_DestroyTexture(dwblP->mTexture);
+	TTF_CloseFont(dwblP->mFont);
+
+	dwblP->mTexture = NULL;
+	dwblP->mFont = NULL;
+}
+void linkDrawable(SDLApplication* sdlP, Drawable* dwblP)
+{
+
+	dwblP->mTexture =
+		SDL_CreateTextureFromSurface(sdlP->mRenderer, dwblP->mSurface);
+
+	if (!dwblP->mTexture)
+	{
+		printf("Texture creation failed: %s\n", SDL_GetError());
+		return;
+	}
+
+
+	SDL_DestroySurface(dwblP->mSurface);
+	dwblP->mSurface = NULL;
+
+}
+
+void updateFrame(SDLApplication* sdlP)
+{
+
+	SDL_RenderPresent(sdlP->mRenderer);
+}
+void renderDrawable(SDLApplication* sdlP, Drawable* dwblP)
+{
+	SDL_RenderTexture(sdlP->mRenderer, dwblP->mTexture, NULL, &(dwblP->mDst));
+}
+
+void updateDrawable(SDLApplication* sdlP, Drawable* dwblP, char* string)
+{
+	dwblP->mText = string;
+
+	SDL_DestroyTexture(dwblP->mTexture);
+
+	dwblP->mSurface =
+		TTF_RenderText_Blended(
+			dwblP->mFont,
+			dwblP->mText,
+			0,
+			dwblP->mColor
+		);
+
+	dwblP->mTexture =
+		SDL_CreateTextureFromSurface(
+			sdlP->mRenderer,
+			dwblP->mSurface
+		);
+
+	dwblP->mWidth = (float)dwblP->mSurface->w;
+	dwblP->mHeight = (float)dwblP->mSurface->h;
+
+
+	dwblP->mDst.w = dwblP->mWidth;
+	dwblP->mDst.h = dwblP->mHeight;
+
+	SDL_DestroySurface(dwblP->mSurface);
+}
+
+
+void renderScreen(SDLApplication* sdlP)
+{
+	SDL_SetRenderDrawColor(sdlP->mRenderer, 30, 30, 30, 255);
+	SDL_RenderClear(sdlP->mRenderer);
+}
+
+
+
+void initializeSDL3(SDLApplication* sdlP)
+{
+	SDL_Init(SDL_INIT_VIDEO);
+	sdlP->mRunning = false;
+	int w = 640, h = 480;
+	sdlP->wM = w;
+	sdlP->hM = h;
+	sdlP->mWindow = SDL_CreateWindow("SDL3 window", w, h, SDL_WINDOW_OPENGL);
+
+	if (sdlP->mWindow == NULL)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not create window: %s\n", SDL_GetError());
+		return 1;
+	}
+
+	if (!TTF_Init()) {
+		printf("TTF Init failed: %s\n", SDL_GetError());
+		return 1;
+	}
+
+
+}
+
+void sdlRunning(SDLApplication* sdlP)
+{
+
+	//creating window
+	SDL_Renderer* renderer = SDL_CreateRenderer(sdlP->mWindow, NULL);
+	if (!renderer)
+	{
+		printf("Renderer creation failed: %s\n", SDL_GetError());
+		return 1;
+	}
+
+	//rendering
+	sdlP->mRenderer = renderer;
+
+	//initializing stringVector pointer W buffer = 256
+	char buffer[256] = "";
+	stringVect strV;
+	stringVect* strVp = &strV;
+	initialize(strVp);
+	SDL_StartTextInput(sdlP->mWindow);
+	addString(strVp, buffer);
+
+	//main window loop
+	while (!sdlP->mRunning)
+	{
+		SDL_Event event;
+		while (SDL_PollEvent(&event)) {
+			if (event.type == SDL_EVENT_QUIT) {
+				sdlP->mRunning = true;
+				break;
+			}
+
+			if (event.type == SDL_EVENT_TEXT_INPUT)
+			{
+				strcat(buffer, event.text.text);
+				printf("%s\n", buffer);
+				append_charptr(strVp, 0, event.text.text);
+				printAll(strVp);
+			}
+		}
+
+		renderScreen(sdlP);
+	}
+	SDL_DestroyRenderer(renderer);
+	SDL_StopTextInput(sdlP->mWindow);
+	SDL_DestroyWindow(sdlP->mWindow);
+	TTF_Quit();
+	SDL_Quit();
+
+}
+
+
+int main()
+{
+	SDLApplication sdlA;
+	SDLApplication* sdlP = &sdlA;
+
+	initializeSDL3(sdlP);
+	sdlRunning(sdlP);
+}
