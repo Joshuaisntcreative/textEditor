@@ -1,4 +1,3 @@
-
 // Online C compiler to run C program online
 #include <stdio.h>
 #include <stdlib.h>
@@ -302,6 +301,27 @@ void initializeSDL3(SDLApplication* sdlP)
 
 }
 
+
+void drawStringVect(SDLApplication* sdlP, stringVect* strVp)
+{
+	TTF_Init();
+	TTF_Font* font = TTF_OpenFont("font/Rockwell.otf", 32);
+	SDL_Color white = { 255,255,255,255 };
+
+	SDL_Surface* surface = TTF_RenderText_Blended(font, strVp->items[0], 0, white);
+	SDL_Texture* texture = SDL_CreateTextureFromSurface(sdlP->mRenderer, surface);
+
+	SDL_DestroySurface(surface);
+
+	SDL_FRect dst =
+	{
+		40,70, 200, 250
+	};
+
+	SDL_RenderTexture(sdlP->mRenderer, texture, NULL, &dst);
+	SDL_RenderPresent(sdlP->mRenderer);
+}
+
 void sdlRunning(SDLApplication* sdlP)
 {
 
@@ -313,17 +333,34 @@ void sdlRunning(SDLApplication* sdlP)
 		return 1;
 	}
 
+
+	Drawable d1;
+	Drawable* d1P = &d1;
+
+
 	//rendering
 	sdlP->mRenderer = renderer;
+
+
+
 
 	//initializing stringVector pointer W buffer = 256
 	char buffer[256] = "";
 	stringVect strV;
 	stringVect* strVp = &strV;
 	initialize(strVp);
+
+
+
 	SDL_StartTextInput(sdlP->mWindow);
+
+
+
 	addString(strVp, buffer);
 
+
+	initializeDrawable(d1P, "hello", 150, 100);
+	linkDrawable(sdlP, d1P);
 	//main window loop
 	while (!sdlP->mRunning)
 	{
@@ -339,11 +376,15 @@ void sdlRunning(SDLApplication* sdlP)
 				strcat(buffer, event.text.text);
 				printf("%s\n", buffer);
 				append_charptr(strVp, 0, event.text.text);
+				updateDrawable(sdlP, d1P, strVp->items[0]);
 				printAll(strVp);
 			}
+			
 		}
-
 		renderScreen(sdlP);
+		renderDrawable(sdlP, d1P);
+		updateFrame(sdlP);
+
 	}
 	SDL_DestroyRenderer(renderer);
 	SDL_StopTextInput(sdlP->mWindow);
