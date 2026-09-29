@@ -379,74 +379,6 @@ void initializeSDL3(SDLApplication* sdlP)
 }
 
 
-typedef struct
-{
-	stringVect strv;
-	Drawable d;
-}drawableStringVect;
-
-
-//combined intialization and linking of SDL3 ttf
-void drawStringVect(SDLApplication* sdlP, drawableStringVect stringVectD, int x, int y)
-{
-	Drawable* dP = &(stringVectD.d);
-	//initializes and links aswell
-	SDL_Color white = { 255, 255, 255, 255 };
-	dP->mColor = white;
-
-
-	dP->mFont = TTF_OpenFont("font/Rockwell.otf", 20);
-	if (!dP->mFont)
-	{
-		printf("Font loading failed: %s\n", SDL_GetError());
-		return;
-	}
-
-	dP->mText = stringVectD.strv.items;
-
-	dP->mSurface = TTF_RenderText_Blended(dP->mFont, dP->mText, 0, white);
-	if (!dP->mSurface)
-	{
-		printf("%s\n", SDL_GetError());
-		return 1;
-	}
-
-	dP->mWidth = (float)(dP->mSurface)->w;
-	dP->mHeight = (float)(dP->mSurface)->h;
-	SDL_FRect dst = {
-	x,
-	y,
-	dP->mWidth,
-	dP->mHeight
-	};
-	dP->mDst = dst;
-
-
-	dP->mTexture =
-		SDL_CreateTextureFromSurface(sdlP->mRenderer, dP->mSurface);
-
-	if (!dP->mTexture)
-	{
-		printf("Texture creation failed: %s\n", SDL_GetError());
-		return;
-	}
-
-
-	SDL_DestroySurface(dP->mSurface);
-	dP->mSurface = NULL;
-}
-
-
-void destroyDrawableStringVect(drawableStringVect dSv)
-{
-	Drawable* dP = &(dSv.d);
-	SDL_DestroyTexture(dP->mTexture);
-	TTF_CloseFont(dP->mFont);
-
-	dP->mTexture = NULL;
-	dP->mFont = NULL;
-}
-
 void sdlRunning(SDLApplication* sdlP)
 {
 
@@ -474,6 +406,14 @@ void sdlRunning(SDLApplication* sdlP)
 	Drawable d3;
 	Drawable* d3P = &d3;
 
+	//initializing stringVector pointer W buffer = 256
+	char buffer[256] = "";
+	stringVect strV;
+	stringVect* strVp = &strV;
+	initialize(strVp);
+	const bool* keys = SDL_GetKeyboardState(sdlP->mWindow);
+	addString(strVp, buffer);
+
 
 	//rendering
 	sdlP->mRenderer = renderer;
@@ -483,25 +423,12 @@ void sdlRunning(SDLApplication* sdlP)
 	initializeDrawable(d2P, totalTimeS, 250, 150);
 	linkDrawable(sdlP, d2P);
 
+	initializeDrawable(d3P, "hello", 160, 110);
+	linkDrawable(sdlP, d3P);
 
 	Uint64 startTime = SDL_GetTicks();
 	SDL_StartTextInput(sdlP->mWindow);
 
-
-
-	//initializing stringVector pointer W buffer = 256
-	char buffer[256] = "";
-	stringVect strV;
-	stringVect* strVp = &strV;
-	initialize(strVp);
-	const bool* keys = SDL_GetKeyboardState(sdlP->mWindow);
-	addString(strVp, buffer);
-	
-	//initialize the drawableStringVect here
-	 
-	drawableStringVect dsV;
-	dsV.d = d3;
-	dsV.strv = strV;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 
 
 	//main window loop
@@ -522,6 +449,7 @@ void sdlRunning(SDLApplication* sdlP)
 			{
 				strcat(buffer, event.text.text);
 				append_charptr(strVp, 0, event.text.text);
+				updateDrawable(sdlP, d3P, return_string(strVp, 0));
 				printAll(strVp);
 			}
 
@@ -541,8 +469,6 @@ void sdlRunning(SDLApplication* sdlP)
 
 		renderScreen(sdlP);
 
-		//render stringVect here
-//		drawStringVect(sdlP, dsV, 200, 250);
 
 		updateDrawable(sdlP, d2P, totalTimeS);
 		renderDrawable(sdlP, d2P);
@@ -567,9 +493,9 @@ void sdlRunning(SDLApplication* sdlP)
 			}
 		}
 		renderDrawable(sdlP, d1P);
+		renderDrawable(sdlP, d3P);
 		updateFrame(sdlP);
 	}
-	//addString(strVp, buffer);
 	printAll(strVp);
 	SDL_StopTextInput(sdlP->mWindow);
 	destroyDrawable(d2P);
